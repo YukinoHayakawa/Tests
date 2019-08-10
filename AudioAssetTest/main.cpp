@@ -9,7 +9,10 @@ using namespace usagi;
 
 int usagi_main(const std::vector<std::string> &args)
 {
-    LibNyquistAudioAssetDecoder decoder;
+    if(args.size() < 1)
+        throw std::runtime_error("usage: <file path>");
+
+    const LibNyquistAudioAssetDecoder decoder;
     auto path = std::filesystem::u8path(args[0]);
     std::ifstream in(path, std::ios::binary);
     auto audio = decoder(in);
