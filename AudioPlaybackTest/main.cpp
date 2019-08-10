@@ -10,6 +10,7 @@
 #include <Usagi/Runtime/Audio/AudioManager.hpp>
 #include <Usagi/Runtime/Audio/AudioDevice.hpp>
 #include <Usagi/Runtime/Audio/AudioOutputStream.hpp>
+#include <Usagi/Utility/CyclicContainerAdapter.hpp>
 
 using namespace usagi;
 
@@ -30,38 +31,41 @@ int usagi_main(const std::vector<std::string> &args)
     auto audio = game.assets()->res<PassthroughAudioAssetConverter>(
         path.filename().u8string());
 
-    std::size_t cursor = 0;
+    utility::CyclicContainerAdapter circular_buffer {
+        audio->samples,
+        audio->samples.begin(),
+        static_cast<std::size_t>(loop ? -1 : 1)
+    };
+    auto it = circular_buffer.begin();
+    auto end = circular_buffer.end();
+
     std::promise<void> play_finished_promise;
     const auto play_finished_future = play_finished_promise.get_future();
 
     auto stream = runtime->audioManager()->defaultOutputDevice()
-        .acquireDevice()->createOutputStream(audio->format,
-            [&](
+        .acquireDevice()->createOutputStream(audio->format, [&](
             std::uint8_t *output_buffer,
-            std::size_t frames) -> AudioStreamStatus {
-                const auto elements_to_read =
-                    frames * audio->format.num_channels;
-                const auto elements_left =
-                    audio->samples.size() - cursor;
-                const auto elements_actual_read = std::min(
-                    elements_left, elements_to_read);
-                const auto bytes_actual =
-                    elements_actual_read * sizeof(float);
-                memcpy(
-                    output_buffer,
-                    &audio->samples[cursor],
-                    bytes_actual
-                );
-                // handle end-of-stream
-                if(elements_actual_read != elements_to_read)
+            const std::size_t frames) -> AudioStreamStatus {
+                auto flt_out = reinterpret_cast<float*>(output_buffer);
+                std::size_t frames_written = 0;
+                while(it != end && frames_written < frames)
                 {
-                    const auto buffer_left = elements_to_read * sizeof(float) -
-                        bytes_actual;
-                    memset(output_buffer + bytes_actual, 0, buffer_left);
+                    for(std::size_t c = 0; c < audio->format.num_channels; ++c)
+                    {
+                        *(flt_out++) = *(it++);
+                    }
+                    ++frames_written;
                 }
-                cursor += elements_actual_read;
-                if(cursor >= audio->samples.size())
+                // handle end-of-stream
+                if(frames_written < frames)
                 {
+                    const auto bytes_per_frame =
+                        audio->format.num_channels * sizeof(float);
+                    memset(
+                        output_buffer + frames_written * bytes_per_frame,
+                        0,
+                        (frames - frames_written) * bytes_per_frame
+                    );
                     play_finished_promise.set_value();
                     return AudioStreamStatus::STOP;
                 }
