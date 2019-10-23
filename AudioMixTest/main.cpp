@@ -2,7 +2,7 @@
 #include <thread>
 
 #include <Usagi/Utility/Utf8Main.hpp>
-#include <Usagi/Extension/Win32/Win32Runtime.hpp>
+#include <Usagi/Extensions/RtWin32/Win32Runtime.hpp>
 #include <Usagi/Extensions/AssetAudioFormats/PassthroughAudioAssetConverter.hpp>
 #include <Usagi/Game/Game.hpp>
 #include <Usagi/Asset/Package/Filesystem/FilesystemAssetPackage.hpp>

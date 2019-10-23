@@ -4,6 +4,7 @@
 #include <Usagi/Utility/Utf8Main.hpp>
 #include <Usagi/Core/Logging.hpp>
 #include <Usagi/Extensions/AssetAudioFormats/OggVorbisAudioAssetDecoder.hpp>
+#include <Usagi/Utility/Unicode.hpp>
 
 using namespace usagi;
 
@@ -13,7 +14,7 @@ int usagi_main(const std::vector<std::string> &args)
         USAGI_THROW(std::runtime_error("usage: <file path>"));
 
     const OggVorbisAudioAssetDecoder decoder;
-    const auto path = std::filesystem::u8path(args[0]);
+    const auto path = std::filesystem::path(stringToU8string(args[0]));
     std::ifstream in(path, std::ios::binary);
     auto audio = decoder(in);
 
